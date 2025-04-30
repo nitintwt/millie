@@ -17,6 +17,15 @@ import {
   GoogleCalendarCreateTool,
   GoogleCalendarViewTool,
 } from "@langchain/community/tools/google_calendar";
+import { MemorySaver } from "@langchain/langgraph";
+
+
+const model = new ChatGroq({
+  model: "llama-3.3-70b-versatile",
+  temperature: 0,
+  maxTokens: undefined,
+  maxRetries: 2,
+})
 
 const gmailParams = {
   credentials: {
@@ -27,15 +36,16 @@ const gmailParams = {
 
 const googleCalendarParams = {
   credentials: {
-    clientEmail: process.env.GOOGLE_CALENDAR_CLIENT_EMAIL,
-    privateKey: process.env.GOOGLE_CALENDAR_PRIVATE_KEY,
-    calendarId: process.env.GOOGLE_CALENDAR_CALENDAR_ID,
+    accessToken: "",
+    calendarId:"primary"
   },
   scopes: [
     "https://www.googleapis.com/auth/calendar",
     "https://www.googleapis.com/auth/calendar.events",
   ],
+  model,
 };
+
 
 const tools= [
   new GmailCreateDraft(gmailParams),
@@ -49,26 +59,16 @@ const tools= [
 ];
 
 const toolNode = new ToolNode(tools);
-
-const model = new ChatGroq({
-  model: "llama-3.3-70b-versatile",
-  temperature: 0,
-  maxTokens: undefined,
-  maxRetries: 2,
-}).bindTools(tools);
+const boundModel = model.bindTools(tools);
+const memory = new MemorySaver();
 
 function shouldContinue({ messages }: typeof MessagesAnnotation.State) {
   const lastMessage = messages[messages.length - 1] as AIMessage;
-
-  if (lastMessage.tool_calls?.length) {
-    return "tools";
-  }
-  return "__end__";
+  return lastMessage.tool_calls?.length ? "tools" : "__end__";
 }
 
 async function callModel(state: typeof MessagesAnnotation.State) {
-  const response = await model.invoke(state.messages);
-
+  const response = await boundModel.invoke(state.messages);
   return { messages: [response] };
 }
 
@@ -79,10 +79,10 @@ const workflow = new StateGraph(MessagesAnnotation)
   .addEdge("tools", "agent")
   .addConditionalEdges("agent", shouldContinue);
 
-const app = workflow.compile();
+const app = workflow.compile({checkpointer:memory});
 
 const finalState = await app.invoke({
-  messages: [new HumanMessage("Could you search in my drafts for the latest email?")],
+  messages: [new HumanMessage("schedule a meeting with nitinsingh2368@gmail.com regarding the project we are going to work on from monday")],
 });
 console.log(finalState.messages[finalState.messages.length - 1].content);
 
