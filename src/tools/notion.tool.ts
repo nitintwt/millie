@@ -2,9 +2,8 @@ import {Client} from '@notionhq/client'
 
 // Initializing a client
 const notion = new Client({
-  auth: "",
+  auth: "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",
 });
-
 
 
 (async () => {

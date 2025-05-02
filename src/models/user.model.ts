@@ -21,9 +21,12 @@ const userSchema = new Schema(
       unique:true,
       index: true
     },
-    tokens:{
+    googleTokens:{
       type:String,
     },
+    notionTokens:{
+      type:String
+    }
   },
   {
     timestamps: true
