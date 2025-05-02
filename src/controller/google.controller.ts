@@ -22,7 +22,7 @@ const googleAuth =async (req:Request , res:Response)=>{
 
 const googleLogin = async (req:Request , res:Response)=>{
   const code = req.query.code as string
-  const userId ="" 
+  const userId ="681206625a8d87059d68eed7" 
 
   const oauth2Client = new google.auth.OAuth2(
    process.env.CLIENT_ID,
