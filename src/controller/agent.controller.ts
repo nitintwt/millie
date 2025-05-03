@@ -5,7 +5,6 @@ import {Request , Response} from 'express'
 
 const reActAgent = async(req:Request , res:Response)=>{
   const {input , userId} = req.body 
-  console.log(input , userId)
   try {
     const response = await agent.invoke({messages:[new HumanMessage(input)]},{configurable:{thread_id:userId}})
     console.log(response.messages[response.messages.length - 1].content);

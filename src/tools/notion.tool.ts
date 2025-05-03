@@ -1,82 +1,74 @@
 import {Client} from '@notionhq/client'
+import { StructuredTool , DynamicStructuredTool } from "@langchain/core/tools";
+import { z } from "zod";
 
-// Initializing a client
-const notion = new Client({
-  auth: "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",
-});
+const addToNotionPage = new DynamicStructuredTool({
+    name:"add_to_notion_page",
+    description:"Can add something in a specific notion page",
+    schema: z.object({
+        pageTitle:z.string(),
+        contentToAdd:z.string()
+    }),
+    async func ({pageTitle , contentToAdd})  {
+        const accessToken = ""
+        const notion = new Client({ auth: accessToken });
+        // Step 1: Search page
+        const res = await notion.search({ query: pageTitle, filter: { value: "page", property: "object" } });
+        if (!res.results.length) return `Page "${pageTitle}" not found.`;
+        const pageId = res.results[0].id;
+        // Step 2: Append block children
+        await notion.blocks.children.append({
+            block_id: pageId,
+            children: [{ object: "block", type: "paragraph", paragraph: { rich_text: [{ type: "text", text: { content: contentToAdd } }] } }]
+        });
+        return `Added to page "${pageTitle}".`;
+    }
+})
 
-
-(async () => {
-  const response = await notion.pages.create({
-    "cover": {
-        "type": "external",
-        "external": {
-            "url": "https://upload.wikimedia.org/wikipedia/commons/6/62/Tuscankale.jpg"
-        }
-    },
-    "icon": {
-        "type": "emoji",
-        "emoji": "🥬"
-    },
-    "parent": {
-        "type": "database_id",
-        "database_id": "30bf0400af01431ca9d402e1c171f902"
-    },
-    "properties": {
-        "Name": {
-            "title": [
-                {
-                    "text": {
-                        "content": "Tuscan kale"
-                    }
+const createNewNotionPage = new DynamicStructuredTool({
+  name:"create_new_page_in_notion",
+  description:" create a new page in notion",
+  schema: z.object({
+    pageTitle:z.string(),
+    pageContent:z.string()
+  }),
+  async func ({pageTitle , pageContent}) {
+    const accessToken = ""
+    const notion = new Client({ auth: accessToken });
+    const databaseId=""
+    try {
+      const response = await notion.pages.create({
+        parent:{
+          database_id:databaseId
+        },
+        properties:{
+          Name:{
+            title:[
+              {
+                text:{
+                  content:pageTitle
                 }
+              }
             ]
-        },
-        "Description": {
-            "rich_text": [
+          },
+          Content:{
+              rich_text: [
                 {
-                    "text": {
-                        "content": "A dark green leafy vegetable"
-                    }
-                }
-            ]
-        },
-        "Food group": {
-            "select": {
-                "name": "🥬 Vegetable"
-            }
-        }
-    },
-    "children": [
-        {
-            "object": "block",
-            "heading_2": {
-                "rich_text": [
-                    {
-                        "text": {
-                            "content": "Lacinato kale"
-                        }
-                    }
-                ]
-            }
-        },
-        {
-            "object": "block",
-            "paragraph": {
-                "rich_text": [
-                    {
-                        "text": {
-                            "content": "Lacinato kale is a variety of kale with a long tradition in Italian cuisine, especially that of Tuscany. It is also known as Tuscan kale, Italian kale, dinosaur kale, kale, flat back kale, palm tree kale, or black Tuscan palm.",
-                            "link": {
-                                "url": "https://en.wikipedia.org/wiki/Lacinato_kale"
-                            }
-                        },
-                    }
-                ],
-                "color": "default"
-            }
-        }
-    ]
-});
-  console.log(response);
-})();
+                  text: {
+                    content: pageContent,
+                  },
+                },
+              ],
+            },
+          }
+      })
+      return `Page titled "${pageTitle}" created successfully`;
+    } catch (error) {
+      console.error("Notion page creation failed:", error);
+      return "Something went wrong. Please try again after some time.";
+    } 
+  }
+})
+
+export {addToNotionPage , createNewNotionPage}
+

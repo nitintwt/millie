@@ -5,16 +5,8 @@ const userSchema = new Schema(
     fullName:{
       type : String,
     },
-    password:{
-      type:String
-    },
     refreshToken:{
         type:String
-    },
-    userName:{
-      type : String,
-      unique: true,
-      default: null,
     },
     email:{
       type : String,
@@ -25,6 +17,9 @@ const userSchema = new Schema(
       type:String,
     },
     notionTokens:{
+      type:String
+    },
+    notionDB:{
       type:String
     }
   },

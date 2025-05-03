@@ -18,6 +18,7 @@ import {
 } from "@langchain/community/tools/google_calendar";
 import { MemorySaver } from "@langchain/langgraph";
 import scheduleMeetingTool from "./tools/scheduleMeet.tool";
+import { addToNotionPage , createNewNotionPage} from "./tools/notion.tool";
 
 
 const model = new ChatGroq({
@@ -55,7 +56,9 @@ const tools= [
   new Calculator(),
   new GoogleCalendarCreateTool(googleCalendarParams),
   new GoogleCalendarViewTool(googleCalendarParams),
-  scheduleMeetingTool
+  scheduleMeetingTool,
+  addToNotionPage,
+  createNewNotionPage
 ];
 
 const toolNode = new ToolNode(tools);
@@ -68,7 +71,7 @@ function shouldContinue({ messages }: typeof MessagesAnnotation.State) {
 }
 
 const systemPrompt = new SystemMessage(`
-You are Millie, a professional AI assistant specialized in email and calendar workflows.  
+You are Millie, a professional AI assistant specialized in email ,  calendar and Notion workflows.  
 You are authoritative, concise, and error aware.  
 
 1. Identity & Tone:
@@ -90,6 +93,11 @@ You are authoritative, concise, and error aware.
        summary: string,
        description: string
      }
+   • Notion: addToNotionPage tool with schema:
+      {
+        pageTitle: string,
+        contentToAdd: string            
+      }
 
 3. Execution Flow:
    a. Read user query.  
