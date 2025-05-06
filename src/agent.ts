@@ -1,5 +1,3 @@
-process.env.GROQ_API_KEY = "";
-
 import { HumanMessage, AIMessage, SystemMessage } from "@langchain/core/messages";
 import { ToolNode } from "@langchain/langgraph/prebuilt";
 import { StateGraph, MessagesAnnotation } from "@langchain/langgraph";
@@ -19,118 +17,121 @@ import {
 import { MemorySaver } from "@langchain/langgraph";
 import scheduleMeetingTool from "./tools/scheduleMeet.tool";
 import { addToNotionPage , createNewNotionPage} from "./tools/notion.tool";
+import { User } from "./models/user.model";
+import getTokens from "./utils/getTokens";
 
+const agent = async(userId)=>{
+  const {googleToken , notionToken}= await getTokens(userId)
+  const model = new ChatGroq({
+    model: "llama-3.3-70b-versatile",
+    temperature: 0,
+    maxRetries: 2,
+    apiKey:process.env.GROQ_API_KEY
+  })
 
-const model = new ChatGroq({
-  model: "llama-3.3-70b-versatile",
-  temperature: 0,
-  maxTokens: 500,
-  maxRetries: 2,
-})
+  const gmailParams = {
+    credentials: {
+      accessToken:googleToken.access_token
+    },
+    scopes: ["https://mail.google.com/"], 
+  };
 
-const gmailParams = {
-  credentials: {
+  const googleCalendarParams = {
+    credentials: {
+      accessToken:googleToken.access_token,
+      calendarId:"primary"
+    },
+    scopes: [
+      "https://www.googleapis.com/auth/calendar",
+      "https://www.googleapis.com/auth/calendar.events",
+    ],
+    model,
+  };
 
-  },
-  scopes: ["https://mail.google.com/"], 
-};
+  const tools= [
+    new GmailCreateDraft(gmailParams),
+    new GmailGetMessage(gmailParams),
+    new GmailGetThread(gmailParams),
+    new GmailSearch(gmailParams),
+    new GmailSendMessage(gmailParams),
+    new Calculator(),
+    new GoogleCalendarCreateTool(googleCalendarParams),
+    new GoogleCalendarViewTool(googleCalendarParams),
+    await scheduleMeetingTool(googleToken.access_token),
+    await addToNotionPage(notionToken),
+  ];
 
-const googleCalendarParams = {
-  credentials: {
+  const toolNode = new ToolNode(tools);
+  const boundModel = model.bindTools(tools);
+  const memory = new MemorySaver();
 
-    calendarId:"primary"
-  },
-  scopes: [
-    "https://www.googleapis.com/auth/calendar",
-    "https://www.googleapis.com/auth/calendar.events",
-  ],
-  model,
-};
+  function shouldContinue({ messages }: typeof MessagesAnnotation.State) {
+    const lastMessage = messages[messages.length - 1] as AIMessage;
+    return lastMessage.tool_calls?.length ? "tools" : "__end__";
+  }
 
-const tools= [
-  new GmailCreateDraft(gmailParams),
-  new GmailGetMessage(gmailParams),
-  new GmailGetThread(gmailParams),
-  new GmailSearch(gmailParams),
-  new GmailSendMessage(gmailParams),
-  new Calculator(),
-  new GoogleCalendarCreateTool(googleCalendarParams),
-  new GoogleCalendarViewTool(googleCalendarParams),
-  scheduleMeetingTool,
-  addToNotionPage,
-  createNewNotionPage
-];
+  const systemPrompt = new SystemMessage(`
+  You are Millie, a professional AI assistant specialized in email ,  calendar and Notion workflows.  
+  You are authoritative, concise, and error aware.  
 
-const toolNode = new ToolNode(tools);
-const boundModel = model.bindTools(tools);
-const memory = new MemorySaver();
+  1. Identity & Tone:
+    • You are Millie, the user's personal productivity AI.  
+    • Tone: friendly, concise, confident.  
+    • If uncertain, ask clarifying questions ,do not guess.  
 
-function shouldContinue({ messages }: typeof MessagesAnnotation.State) {
-  const lastMessage = messages[messages.length - 1] as AIMessage;
-  return lastMessage.tool_calls?.length ? "tools" : "__end__";
-}
-
-const systemPrompt = new SystemMessage(`
-You are Millie, a professional AI assistant specialized in email ,  calendar and Notion workflows.  
-You are authoritative, concise, and error aware.  
-
-1. Identity & Tone:
-   • You are Millie, the user's personal productivity AI.  
-   • Tone: friendly, concise, confident.  
-   • If uncertain, ask clarifying questions ,do not guess.  
-
-2. Tools & Schemas:
-   • Gmail tools: Search, GetThread, GetMessage, CreateDraft, SendMessage.  
-   • Calendar tools: ViewEvents, CreateEvent (includes Meet link).  
-   • Custom: scheduleMeetingTool with schema:
-     {
-       userEmail: string (email),
-       attendename: string,
-       attendeEmail: string (email),
-       date: \"YYYY-MM-DD\",
-       startTime: \"HH:MM\",
-       endTime: \"HH:MM\",
-       summary: string,
-       description: string
-     }
-   • Notion: addToNotionPage tool with schema:
+  2. Tools & Schemas:
+    • Gmail tools: Search, GetThread, GetMessage, CreateDraft, SendMessage.  
+    • Calendar tools: ViewEvents, CreateEvent (includes Meet link).  
+    • Custom: scheduleMeetingTool with schema:
       {
-        pageTitle: string,
-        contentToAdd: string            
+        userEmail: string (email),
+        attendename: string,
+        attendeEmail: string (email),
+        date: \"YYYY-MM-DD\",
+        startTime: \"HH:MM\",
+        endTime: \"HH:MM\",
+        summary: string,
+        description: string
       }
+    • Notion: addToNotionPage tool with schema:
+        {
+          pageTitle: string,
+          contentToAdd: string            
+        }
 
-3. Execution Flow:
-   a. Read user query.  
-   b. If tool required:
-      • Validate all fields against schema.  
-      • If fields missing, ask user specifically.  
-      • Call tool with exact JSON.  
-   c. On tool success: confirm action with concise summary and any links.  
-   d. On tool failure: inform user: “Something went wrong.Please try again after some time.”  
+  3. Execution Flow:
+    a. Read user query.  
+    b. If tool required:
+        • Validate all fields against schema.  
+        • If fields missing, ask user specifically.  
+        • Call tool with exact JSON.  
+    c. On tool success: confirm action with concise summary and any links.  
+    d. On tool failure: inform user: “Something went wrong.Please try again after some time.”  
 
-4. Context & Memory:
-   • Maintain conversation history to resolve pronouns (“this”, “that email”).
+  4. Context & Memory:
+    • Maintain conversation history to resolve pronouns (“this”, “that email”).
 
-5. Constraints:
-   • Always schedule in IST (Asia/Kolkata) unless user overrides.  
-   • Never expose internal tokens or stack traces.  
-   • Do not hallucinate data , use only user provided or tool retrieved info. `);
+  5. Constraints:
+    • Always schedule in IST (Asia/Kolkata) unless user overrides.  
+    • Never expose internal tokens or stack traces.  
+    • Do not hallucinate data , use only user provided or tool retrieved info. `);
 
-async function callModel(state: typeof MessagesAnnotation.State) {
-  const userMessages = state.messages;
-  const messagesWithSystemPrompt = [systemPrompt, ...userMessages];
-  const response = await boundModel.invoke(messagesWithSystemPrompt);
-  return { messages: [response] };
+  async function callModel(state: typeof MessagesAnnotation.State) {
+    const userMessages = state.messages;
+    const messagesWithSystemPrompt = [systemPrompt, ...userMessages];
+    const response = await boundModel.invoke(messagesWithSystemPrompt);
+    return { messages: [response] };
+  }
+
+  const workflow = new StateGraph(MessagesAnnotation)
+    .addNode("agent", callModel)
+    .addEdge("__start__", "agent")
+    .addNode("tools", toolNode)
+    .addEdge("tools", "agent")
+    .addConditionalEdges("agent", shouldContinue);
+
+  return workflow.compile({checkpointer:memory});
 }
-
-const workflow = new StateGraph(MessagesAnnotation)
-  .addNode("agent", callModel)
-  .addEdge("__start__", "agent")
-  .addNode("tools", toolNode)
-  .addEdge("tools", "agent")
-  .addConditionalEdges("agent", shouldContinue);
-
-const agent = workflow.compile({checkpointer:memory});
 
 export default agent
 

@@ -6,7 +6,8 @@ import {Request , Response} from 'express'
 const reActAgent = async(req:Request , res:Response)=>{
   const {input , userId} = req.body 
   try {
-    const response = await agent.invoke({messages:[new HumanMessage(input)]},{configurable:{thread_id:userId}})
+    const millie = await agent(userId)
+    const response = await millie.invoke({messages:[new HumanMessage(input)]},{configurable:{thread_id:userId}})
     console.log(response.messages[response.messages.length - 1].content);
     return res.status(200).json({message:response.messages[response.messages.length - 1].content})
   } catch (error) {

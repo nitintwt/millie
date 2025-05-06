@@ -2,7 +2,8 @@ import { google } from "googleapis";
 import { StructuredTool , DynamicStructuredTool } from "@langchain/core/tools";
 import { z } from "zod";
 
-const scheduleMeetingTool = new DynamicStructuredTool({
+const scheduleMeetingTool = async (accessToken)=>{
+  return new DynamicStructuredTool({
   name: "schedule_meeting",
   description: "Can schedule Google Meet meetings between two participants.",
   schema: z.object({
@@ -27,7 +28,7 @@ const scheduleMeetingTool = new DynamicStructuredTool({
   }) {
     const authClient = new google.auth.OAuth2();
     authClient.setCredentials({
-      access_token: "",
+      access_token: accessToken,
     });
 
     const calendar = google.calendar({ version: "v3", auth: authClient });
@@ -66,6 +67,6 @@ const scheduleMeetingTool = new DynamicStructuredTool({
       return `Error scheduling meeting: ${error}`;
     }
   }
-});
+})};
 
 export default scheduleMeetingTool

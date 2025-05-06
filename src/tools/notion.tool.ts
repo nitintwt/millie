@@ -2,7 +2,8 @@ import {Client} from '@notionhq/client'
 import { StructuredTool , DynamicStructuredTool } from "@langchain/core/tools";
 import { z } from "zod";
 
-const addToNotionPage = new DynamicStructuredTool({
+const addToNotionPage = async (accessToken)=>{
+  return new DynamicStructuredTool({
     name:"add_to_notion_page",
     description:"Can add something in a specific notion page",
     schema: z.object({
@@ -10,7 +11,6 @@ const addToNotionPage = new DynamicStructuredTool({
         contentToAdd:z.string()
     }),
     async func ({pageTitle , contentToAdd})  {
-        const accessToken = ""
         const notion = new Client({ auth: accessToken });
         // Step 1: Search page
         const res = await notion.search({ query: pageTitle, filter: { value: "page", property: "object" } });
@@ -23,9 +23,10 @@ const addToNotionPage = new DynamicStructuredTool({
         });
         return `Added to page "${pageTitle}".`;
     }
-})
+})}
 
-const createNewNotionPage = new DynamicStructuredTool({
+const createNewNotionPage = async (accessToken)=>{
+  return new DynamicStructuredTool({
   name:"create_new_page_in_notion",
   description:" create a new page in notion",
   schema: z.object({
@@ -33,7 +34,6 @@ const createNewNotionPage = new DynamicStructuredTool({
     pageContent:z.string()
   }),
   async func ({pageTitle , pageContent}) {
-    const accessToken = ""
     const notion = new Client({ auth: accessToken });
     const databaseId=""
     try {
@@ -68,7 +68,7 @@ const createNewNotionPage = new DynamicStructuredTool({
       return "Something went wrong. Please try again after some time.";
     } 
   }
-})
+})}
 
 export {addToNotionPage , createNewNotionPage}
 
