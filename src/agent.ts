@@ -15,17 +15,18 @@ import {
   GoogleCalendarViewTool,
 } from "@langchain/community/tools/google_calendar";
 import { MemorySaver } from "@langchain/langgraph";
-import scheduleMeetingTool from "./tools/scheduleMeet.tool";
-import { addToNotionPage , createNewNotionPage} from "./tools/notion.tool";
-import { User } from "./models/user.model";
-import getTokens from "./utils/getTokens";
+import scheduleMeetingTool from "./tools/scheduleMeet.tool.js";
+import { addToNotionPage , createNewNotionPage} from "./tools/notion.tool.js";
+import { User } from "./models/user.model.js";
+import getTokens from "./utils/getTokens.js";
 
 const agent = async(userId)=>{
   const {googleToken , notionToken}= await getTokens(userId)
   const model = new ChatGroq({
-    model: "llama-3.3-70b-versatile",
+    model: "mistral-saba-24b",
     temperature: 0,
     maxRetries: 2,
+    maxTokens:750,
     apiKey:process.env.GROQ_API_KEY
   })
 
@@ -57,7 +58,7 @@ const agent = async(userId)=>{
     new Calculator(),
     new GoogleCalendarCreateTool(googleCalendarParams),
     new GoogleCalendarViewTool(googleCalendarParams),
-    await scheduleMeetingTool(googleToken.access_token),
+    await scheduleMeetingTool(googleToken),
     await addToNotionPage(notionToken),
   ];
 
@@ -80,7 +81,14 @@ const agent = async(userId)=>{
     • If uncertain, ask clarifying questions ,do not guess.  
 
   2. Tools & Schemas:
-    • Gmail tools: Search, GetThread, GetMessage, CreateDraft, SendMessage.  
+    • Gmail tools:
+      - Search: Use to find emails using natural language (e.g., sender, subject).
+        Input schema: { query: string }
+        Example: { query: "from:example@gmail.com" }
+      - GetMessage: Use to get full content of a message. Needs { messageId }.
+      - GetThread: Use to fetch all messages in a conversation. Needs { threadId }.
+      - CreateDraft: Use to compose an email.
+      - SendMessage: Use to send a composed message.
     • Calendar tools: ViewEvents, CreateEvent (includes Meet link).  
     • Custom: scheduleMeetingTool with schema:
       {
@@ -104,9 +112,12 @@ const agent = async(userId)=>{
     b. If tool required:
         • Validate all fields against schema.  
         • If fields missing, ask user specifically.  
-        • Call tool with exact JSON.  
-    c. On tool success: confirm action with concise summary and any links.  
-    d. On tool failure: inform user: “Something went wrong.Please try again after some time.”  
+        • Call tool with exact JSON.
+    c. If scheduling a meeting:
+        i. Use scheduleMeetingTool to confirm participants and finalize details.
+        ii. Then, call GoogleCalendarCreateTool with meeting details to create calendar event.  
+    d. On tool success: confirm action with concise summary and any links.  
+    e. On tool failure: inform user: “Something went wrong.Please try again after some time.”  
 
   4. Context & Memory:
     • Maintain conversation history to resolve pronouns (“this”, “that email”).

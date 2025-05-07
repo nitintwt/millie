@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { googleAuth , googleLogin, notionLogin} from "../controller/auth.controller"
+import { googleAuth , googleLogin, notionLogin} from "../controller/auth.controller.js"
 
 const authRouter = Router()
 

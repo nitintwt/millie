@@ -1,7 +1,7 @@
 import { google } from "googleapis";
 import { Request, Response } from "express";
-import { User } from "../models/user.model"
-import { ApiResponse } from "../utils/ApiResponse";
+import { User } from "../models/user.model.js"
+import { ApiResponse } from "../utils/ApiResponse.js";
 
 const googleAuth =async (req:Request , res:Response)=>{
   const oauth2Client = new google.auth.OAuth2(
@@ -13,7 +13,8 @@ const googleAuth =async (req:Request , res:Response)=>{
   const scopes = ['https://mail.google.com/',"https://www.googleapis.com/auth/calendar", "https://www.googleapis.com/auth/calendar.events",   "https://www.googleapis.com/auth/userinfo.email","https://www.googleapis.com/auth/userinfo.profile"]
   const url = oauth2Client.generateAuthUrl({
     access_type:"offline",
-    scope:scopes
+    scope:scopes,
+    prompt:"consent",
   })
   res.redirect(url)
 }
@@ -61,7 +62,7 @@ const googleLogin = async (req:Request , res:Response)=>{
 const notionLogin = async (req:Request , res:Response)=>{
   const {code} = req.query
   const {userId} =req.body 
-
+  console.log("code" , code)
   const clientId = process.env.NOTION_CLIENT_ID;
   const clientSecret = process.env.NOTION_CLIENT_SECRET;
   const redirectUri = process.env.NOTION_REDIRECT_URI;

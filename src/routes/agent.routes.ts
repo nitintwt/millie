@@ -1,4 +1,4 @@
-import { reActAgent } from "../controller/agent.controller"
+import { reActAgent } from "../controller/agent.controller.js"
 import {Router} from "express"
 
 const agentRouter = Router()

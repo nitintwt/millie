@@ -11,6 +11,7 @@ const addToNotionPage = async (accessToken)=>{
         contentToAdd:z.string()
     }),
     async func ({pageTitle , contentToAdd})  {
+      try {
         const notion = new Client({ auth: accessToken });
         // Step 1: Search page
         const res = await notion.search({ query: pageTitle, filter: { value: "page", property: "object" } });
@@ -21,7 +22,10 @@ const addToNotionPage = async (accessToken)=>{
             block_id: pageId,
             children: [{ object: "block", type: "paragraph", paragraph: { rich_text: [{ type: "text", text: { content: contentToAdd } }] } }]
         });
-        return `Added to page "${pageTitle}".`;
+        return `✅ I've successfully added your content to the Notion page titled "${pageTitle}".`;;
+      } catch (error) {
+        return `Error : ${error}`;
+      }
     }
 })}
 

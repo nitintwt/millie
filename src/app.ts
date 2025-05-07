@@ -1,7 +1,7 @@
 import express from 'express'
 import cors from 'cors'
-import authRouter from './routes/auth.routes'
-import agentRouter from './routes/agent.routes'
+import authRouter from './routes/auth.routes.js'
+import agentRouter from './routes/agent.routes.js'
 const app = express()
 
 app.use(cors({
