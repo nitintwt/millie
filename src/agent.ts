@@ -23,7 +23,7 @@ import getTokens from "./utils/getTokens.js";
 const agent = async(userId)=>{
   const {googleToken , notionToken}= await getTokens(userId)
   const model = new ChatGroq({
-    model: "mistral-saba-24b",
+    model: "llama-3.3-70b-versatile",
     temperature: 0,
     maxRetries: 2,
     maxTokens:750,
@@ -128,9 +128,11 @@ const agent = async(userId)=>{
     • Do not hallucinate data , use only user provided or tool retrieved info. `);
 
   async function callModel(state: typeof MessagesAnnotation.State) {
-    const userMessages = state.messages;
-    const messagesWithSystemPrompt = [systemPrompt, ...userMessages];
-    const response = await boundModel.invoke(messagesWithSystemPrompt);
+    const response = await boundModel.invoke(state.messages, {
+      configurable: {
+        prefixMessages: [systemPrompt],
+      },
+    });
     return { messages: [response] };
   }
 

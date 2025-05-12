@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node dist/index.ts",
     "dev": "nodemon --exec tsx src/index.ts",
+    "dev:worker": "node --watch src/worker.ts",
     "build": "tsc -p . && tsc-alias"
   },
   "author": "Nitin Singh",
@@ -18,18 +19,24 @@
     "typescript": "^5.8.3"
   },
   "dependencies": {
-    "@langchain/community": "^0.3.41",
-    "@langchain/core": "^0.3.49",
+    "@langchain/community": "^0.3.42",
+    "@langchain/core": "^0.3.55",
     "@langchain/groq": "^0.2.2",
     "@langchain/langgraph": "^0.2.67",
+    "@langchain/openai": "^0.5.10",
+    "@langchain/qdrant": "^0.1.2",
+    "@langchain/textsplitters": "^0.1.0",
     "@notionhq/client": "^2.3.0",
     "@slack/oauth": "^3.0.3",
     "@slack/web-api": "^7.9.1",
+    "bullmq": "^5.52.2",
     "cors": "^2.8.5",
     "dotenv": "^16.5.0",
     "express": "^5.1.0",
     "googleapis": "^148.0.0",
     "mongoose": "^8.14.1",
+    "multer": "^1.4.5-lts.2",
+    "pdf-parse": "^1.1.1",
     "tsx": "^4.19.4",
     "zod": "^3.24.3"
   }
