@@ -14,7 +14,7 @@ Steps:
 4. store the chunk in qdrant db
 */
 
-const worker = new Worker('file-upload-queue', async(job)=>{
+/*const worker = new Worker('file-upload-queue', async(job)=>{
   console.log("job", job.data)
   const data = JSON.parse(job.data)
 
@@ -27,7 +27,7 @@ const worker = new Worker('file-upload-queue', async(job)=>{
   })
 
   const texts = await textsplitter.splitText(docs)
-  console.log(texts)*/
+  console.log(texts)
 
   const embeddings = new OpenAIEmbeddings({model:"text-embedding-3-small" ,apiKey:process.env.OPENAI_KEY})
 
@@ -46,4 +46,4 @@ const worker = new Worker('file-upload-queue', async(job)=>{
   host:"localhost",
   port:6379
  }}
-)
+)*/

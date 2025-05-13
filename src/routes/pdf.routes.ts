@@ -1,8 +1,8 @@
-import { uploadPdf } from '../controller/pdf.controller.js'
+import { putObjectUrlForPdfUpload } from '../controller/pdf.controller.js'
 import {Router} from 'express'
 
 const pdfRouter = Router()
 
-pdfRouter.route("/upload/pdf").post(uploadPdf)
+pdfRouter.route("/putObjectUrl").get(putObjectUrlForPdfUpload)
 
 export default pdfRouter
