@@ -19,6 +19,40 @@ import scheduleMeetingTool from "./tools/scheduleMeet.tool.js";
 import { addToNotionPage , createNewNotionPage} from "./tools/notion.tool.js";
 import { User } from "./models/user.model.js";
 import getTokens from "./utils/getTokens.js";
+import pdfDataRetriever from "./tools/pdfDataRetriever.js";
+import { ChatPromptTemplate } from "@langchain/core/prompts";
+import { RunnableSequence } from "@langchain/core/runnables.js";
+import { StringOutputParser } from "@langchain/core/output_parsers";
+
+const chainClassifierPrompt = ChatPromptTemplate.fromTemplate(
+  `Classify the user question as either "PDF" or "General".
+  If the question is about searching, summarizing, or extracting from a PDF, respond with "PDF".Otherwise, respond with "General".`
+)
+
+const chainClassifier = RunnableSequence.from([
+  chainClassifierPrompt,
+  new ChatGroq({
+    model: "llama-3-8b-8192",
+    temperature: 0,
+    apiKey: process.env.GROQ_API_KEY,
+  }),
+  new StringOutputParser(),
+])
+
+const pdfChain = RunnableSequence.from([
+  ChatPromptTemplate.fromTemplate(
+    `You are Millie , a PDF assistant. Answer the user's question using the using the pdf data which is saved in qdrant database.
+    You have tool to query data from the Database. Use the retrieved data and your logic to respond to user query.
+    Tool:
+    pdfDataRetriever: This tools is a function which fetches relevant pdf data from the DB based on user query. `
+  ),
+  new ChatGroq({
+    model: "llama-3-8b-8192",
+    temperature: 0,
+    apiKey: process.env.GROQ_API_KEY,
+  }).bindTools([await pdfDataRetriever()])
+]);
+
 
 const agent = async(userId)=>{
   const {googleToken , notionToken}= await getTokens(userId)
@@ -143,15 +177,21 @@ const agent = async(userId)=>{
     .addEdge("tools", "agent")
     .addConditionalEdges("agent", shouldContinue);
 
-  return workflow.compile({checkpointer:memory});
+  async function mainRouter({ messages }, {configurable}) {
+  const lastUserMsg = messages.filter(m => m instanceof HumanMessage).pop();
+  const question = lastUserMsg?.content || "";
+  const classification = await chainClassifier.invoke({ question });
+    if (classification.trim().toLowerCase() === "pdf") {
+      const pdfResult = await pdfChain.invoke({ question }, configurable);
+      return { messages: [pdfResult] };
+    } else {
+      return await workflow.compile({ checkpointer: memory }).invoke({ messages }, configurable);
+    }
+  }
+
+  return {
+    invoke: mainRouter,
+  };
 }
 
 export default agent
-
-/*const finalState = await agent.invoke({
-  messages: [new HumanMessage("summarise the most recent email from nitinsingh2368@gmail.com. Then , send a reply to him accordingly")],
-}, {configurable:{thread_id:'1'}});
-console.log(finalState.messages[finalState.messages.length - 1].content);
-
-console.log(finalState)*/
-
