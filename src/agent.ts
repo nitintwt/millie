@@ -39,20 +39,6 @@ const chainClassifier = RunnableSequence.from([
   new StringOutputParser(),
 ])
 
-const pdfChain = RunnableSequence.from([
-  ChatPromptTemplate.fromTemplate(
-    `You are Millie , a PDF assistant. Answer the user's question using the using the pdf data which is saved in qdrant database.
-    You have tool to query data from the Database. Use the retrieved data and your logic to respond to user query.
-    Tool:
-    pdfDataRetriever: This tools is a function which fetches relevant pdf data from the DB based on user query. `
-  ),
-  new ChatGroq({
-    model: "llama-3-8b-8192",
-    temperature: 0,
-    apiKey: process.env.GROQ_API_KEY,
-  }).bindTools([await pdfDataRetriever()])
-]);
-
 
 const agent = async(userId)=>{
   const {googleToken , notionToken}= await getTokens(userId)
@@ -178,12 +164,25 @@ const agent = async(userId)=>{
     .addConditionalEdges("agent", shouldContinue);
 
   async function mainRouter({ messages }, {configurable}) {
-  const lastUserMsg = messages.filter(m => m instanceof HumanMessage).pop();
-  const question = lastUserMsg?.content || "";
-  const classification = await chainClassifier.invoke({ question });
+    const lastUserMsg = messages.filter(m => m instanceof HumanMessage).pop();
+    const question = lastUserMsg?.content || "";
+    const classification = await chainClassifier.invoke({ question });
     if (classification.trim().toLowerCase() === "pdf") {
-      const pdfResult = await pdfChain.invoke({ question }, configurable);
-      return { messages: [pdfResult] };
+      const docs = await pdfDataRetriever(question)
+      const prompt = `You are Millie , a PDF assistant. Answer the user's question using the using the pdf data which has been provided. Data:- ${JSON.stringify(docs)}`
+      const model = new ChatGroq({
+        model: "llama-3.3-70b-versatile",
+        temperature: 0,
+        maxRetries: 2,
+        maxTokens:750,
+        apiKey:process.env.GROQ_API_KEY,
+      })
+      const response = await model.invoke(question, {
+        configurable:{
+          prefixMessages:[prompt]
+        }
+      })
+      return {response , docs}
     } else {
       return await workflow.compile({ checkpointer: memory }).invoke({ messages }, configurable);
     }
